@@ -1,0 +1,603 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Yongxing</title>
+    <!-- 載入 Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- 載入 Vue.js 3 -->
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <style>
+        /* 使用 Inter 字體 */
+        body { font-family: 'Inter', sans-serif; }
+        /* 導航連結的基礎樣式 */
+        .nav-link {
+            @apply text-gray-600 hover:text-indigo-600 font-medium px-3 py-2 rounded-lg transition duration-150 ease-in-out;
+        }
+        /* 導航連結的活躍樣式 */
+        .nav-link-active {
+            @apply bg-indigo-50 text-indigo-700 font-semibold shadow-inner;
+        }
+    </style>
+</head>
+<body class="bg-gray-50">
+
+<div id="app" class="min-h-screen text-gray-800">
+    
+    <!-- 標頭與導航列 -->
+    <header class="bg-white shadow-md sticky top-0 z-10">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
+            
+            <!-- Title 標題 (左上角) -->
+            <h1 class="text-3xl font-extrabold text-indigo-600 tracking-tight">
+                Yongxing
+            </h1>
+            
+            <!-- Navigation 導航 (右上角) -->
+            <nav class="flex space-x-4 sm:space-x-6">
+                <button 
+                    @click="currentPage = 'Search'"
+                    :class="{'nav-link-active': currentPage === 'Search'}"
+                    class="nav-link"
+                >
+                    Search
+                </button>
+                <button 
+                    @click="currentPage = 'Lexicon'"
+                    :class="{'nav-link-active': currentPage === 'Lexicon'}"
+                    class="nav-link"
+                >
+                    Lexicon
+                </button>
+                <button 
+                    @click="currentPage = 'Categories'"
+                    :class="{'nav-link-active': currentPage === 'Categories'}"
+                    class="nav-link"
+                >
+                    Categories
+                </button>
+            </nav>
+        </div>
+    </header>
+
+    <!-- 主要內容區 -->
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        
+        <!-- 載入狀態 / 錯誤訊息 -->
+        <template v-if="isLoading">
+            <div class="text-center p-12 text-xl text-indigo-500">
+                資料載入中，請稍候...
+                <div class="mt-4 animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-500 mx-auto"></div>
+            </div>
+        </template>
+        <template v-else-if="error">
+            <div class="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 rounded-md shadow-lg" role="alert">
+                <p class="font-bold">資料載入錯誤</p>
+                <p>無法從 CSV 連結獲取或解析資料。錯誤訊息: {{ error }}</p>
+            </div>
+        </template>
+        <template v-else>
+            <!-- Search 檢索頁面 -->
+            <div v-if="currentPage === 'Search'" class="bg-white p-6 sm:p-8 rounded-xl shadow-lg">
+                <h2 class="text-2xl font-semibold mb-6 text-gray-700">Search</h2>
+
+                <!-- 篩選條件輸入區 -->
+                <div class="flex flex-col sm:flex-row gap-4 mb-6 items-center">
+                    
+                    <!-- 欄位選擇下拉式選單 -->
+                    <select 
+                        v-model="searchField" 
+                        @change="searchTerm = ''"
+                        class="flex-shrink-0 w-full sm:w-auto p-3 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 transition duration-150 ease-in-out"
+                    >
+                        <option value="entry">Yongxing詞條</option>
+                        <option value="gloss_chinese">中文釋義</option>
+                        <option value="gloss_pinyin">拼音</option>
+                    </select>
+                    
+                    <!-- 關鍵字輸入框 -->
+                    <input
+                        type="text"
+                        v-model="searchTerm"
+                        @keyup.enter="handleSearch"
+                        placeholder="輸入關鍵字進行篩選..."
+                        class="flex-grow w-full p-3 border border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 transition duration-150 ease-in-out"
+                    />
+
+                    <!-- 篩選按鈕 -->
+                    <button
+                        @click="handleSearch"
+                        class="w-full sm:w-auto px-6 py-3 bg-indigo-600 text-white font-medium rounded-lg shadow-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition duration-150 ease-in-out"
+                    >
+                        篩選
+                    </button>
+                </div>
+
+                <!-- 篩選結果顯示 -->
+                <template v-if="currentQuery.length > 0">
+                    <div class="text-sm text-gray-500 mb-4">
+                        已找到 <span class="font-semibold text-indigo-600">{{ filteredResults.length }}</span> 筆結果
+                    </div>
+                </template>
+
+                <!-- 結果表格 -->
+                <!-- 移除 table-fixed，讓表格寬度自動適應內容，溢出時由 overflow-x-auto 處理捲動 -->
+                <div class="overflow-x-auto bg-gray-50 rounded-lg shadow-inner border border-gray-200">
+                    <table v-if="filteredResults.length > 0" class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-indigo-50">
+                            <tr>
+                                <!-- 移除寬度設定和隱藏設定 -->
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Entry</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Gloss Chinese</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Gloss Pinyin</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Note</th>
+                            </tr>
+                        </thead>
+                        <tbody class="bg-white divide-y divide-gray-200">
+                            <tr v-for="item in filteredResults" :key="item.entry" class="hover:bg-indigo-50 transition duration-100 ease-in-out">
+                                <!-- Entry (詞條) 欄位 - 加入音檔播放按鈕 -->
+                                <td class="px-6 py-4 font-medium text-gray-900 flex items-center whitespace-nowrap">
+                                    <span class="mr-2">{{ item.entry }}</span>
+                                    
+                                    <!-- Audio Play Button -->
+                                    <button 
+                                        v-if="item.hashed_audio_file" 
+                                        @click.stop="playAudio(item.hashed_audio_file)" 
+                                        title="播放音檔"
+                                        class="text-indigo-500 hover:text-indigo-700 focus:outline-none p-1 rounded-full hover:bg-indigo-100 transition duration-150 flex-shrink-0"
+                                    >
+                                        <!-- Speaker Icon (SVG) -->
+                                        <svg fill="currentColor" viewBox="0 0 260 228" class="w-5 h-5">
+                                            <path d="M170.81,78.043l15.653-15.653c14.848,12.299,24.323,30.868,24.323,51.61c0,21.04-9.757,39.836-24.974,52.128l-15.68-15.68
+                                                c11.291-8.184,18.655-21.469,18.655-36.448C188.786,99.32,181.719,86.262,170.81,78.043z M236,114
+                                                c0,28.068-12.569,53.253-32.371,70.231l15.584,15.584C242.982,178.82,258,148.133,258,114c0-33.836-14.757-64.286-38.168-85.265
+                                                L204.257,44.31C223.696,61.28,236,86.229,236,114z M146,2L56.4,66H2v96h54.4l89.6,64V2z"/>
+                                        </svg>
+                                    </button>
+                                </td>
+                                <!-- 移除寬度設定和隱藏設定 -->
+                                <td class="px-6 py-4 text-sm text-gray-500 whitespace-nowrap">{{ item.category }}</td>
+                                <!-- 移除寬度設定，保留 whitespace-normal 確保換行 -->
+                                <td class="px-6 py-4 text-sm text-gray-700 whitespace-normal">{{ item.gloss_chinese }}</td>
+                                <td class="px-6 py-4 text-sm text-gray-500 whitespace-nowrap">{{ item.gloss_pinyin }}</td>
+                                <td class="px-6 py-4 text-sm text-gray-500 whitespace-normal">{{ item.note }}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    <div v-else-if="currentQuery.length > 0" class="p-8 text-center text-gray-500">
+                        沒有找到符合篩選條件 "<span class="font-semibold text-gray-600">{{ currentQuery }}</span>" 的結果。
+                    </div>
+                    <div v-else class="p-8 text-center text-gray-500">
+                        請選擇欄位並輸入關鍵字開始檢索。
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Lexicon 詞彙頁面 -->
+            <div v-else-if="currentPage === 'Lexicon'" class="bg-white p-6 sm:p-8 rounded-xl shadow-lg">
+                <h2 class="text-2xl font-semibold mb-6 text-gray-700">Lexicon</h2>
+                
+                <!-- Character Navigation Bar (子音導航列) -->
+                <div class="flex flex-wrap gap-2 p-3 bg-indigo-50 rounded-lg mb-6 shadow-inner justify-center">
+                    <button
+                        v-for="char in consonantOrder"
+                        :key="char"
+                        @click="setLexiconFilter(char)"
+                        :class="{ 
+                            'bg-indigo-600 text-white shadow-md ring-2 ring-indigo-300': currentLexiconFilter === char,
+                            'bg-white text-gray-700 hover:bg-indigo-100': currentLexiconFilter !== char 
+                        }"
+                        class="px-3 py-1.5 font-bold text-lg rounded-md transition duration-150 ease-in-out border border-gray-200 text-sm sm:text-base"
+                    >
+                        {{ char }} <span class="text-xs">({{ groupedLexicon[char] ? groupedLexicon[char].length : 0 }})</span>
+                    </button>
+                </div>
+
+                <!-- Lexicon Results -->
+                <div class="overflow-x-auto bg-gray-50 rounded-lg shadow-inner border border-gray-200">
+                    <table v-if="filteredLexicon.length > 0" class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-indigo-50">
+                            <tr>
+                                <!-- 移除寬度設定和隱藏設定 -->
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Entry</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Gloss Chinese</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Gloss Pinyin</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Note</th>
+                            </tr>
+                        </thead>
+                        <tbody class="bg-white divide-y divide-gray-200">
+                            <tr v-for="item in filteredLexicon" :key="item.entry" class="hover:bg-indigo-50 transition duration-100 ease-in-out">
+                                <!-- Entry (詞條) 欄位 - 加入音檔播放按鈕 -->
+                                <td class="px-6 py-4 font-medium text-gray-900 flex items-center whitespace-nowrap">
+                                    <span class="mr-2">{{ item.entry }}</span>
+                                    <button 
+                                        v-if="item.hashed_audio_file" 
+                                        @click.stop="playAudio(item.hashed_audio_file)" 
+                                        title="播放音檔"
+                                        class="text-indigo-500 hover:text-indigo-700 focus:outline-none p-1 rounded-full hover:bg-indigo-100 transition duration-150 flex-shrink-0"
+                                    >
+                                        <!-- Speaker Icon (SVG) -->
+                                        <svg fill="currentColor" viewBox="0 0 260 228" class="w-5 h-5">
+                                            <path d="M170.81,78.043l15.653-15.653c14.848,12.299,24.323,30.868,24.323,51.61c0,21.04-9.757,39.836-24.974,52.128l-15.68-15.68
+                                                c11.291-8.184,18.655-21.469,18.655-36.448C188.786,99.32,181.719,86.262,170.81,78.043z M236,114
+                                                c0,28.068-12.569,53.253-32.371,70.231l15.584,15.584C242.982,178.82,258,148.133,258,114c0-33.836-14.757-64.286-38.168-85.265
+                                                L204.257,44.31C223.696,61.28,236,86.229,236,114z M146,2L56.4,66H2v96h54.4l89.6,64V2z"/>
+                                        </svg>
+                                    </button>
+                                </td>
+                                <!-- 移除寬度設定和隱藏設定 -->
+                                <td class="px-6 py-4 text-sm text-gray-500 whitespace-nowrap">{{ item.category }}</td>
+                                <!-- 移除寬度設定，保留 whitespace-normal 確保換行 -->
+                                <td class="px-6 py-4 text-sm text-gray-700 whitespace-normal">{{ item.gloss_chinese }}</td>
+                                <td class="px-6 py-4 text-sm text-gray-500 whitespace-nowrap">{{ item.gloss_pinyin }}</td>
+                                <td class="px-6 py-4 text-sm text-gray-500 whitespace-normal">{{ item.note }}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    <div v-else class="p-8 text-center text-gray-500">
+                        找不到以 "{{ currentLexiconFilter }}" 開頭的詞條。
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Categories 頁面 -->
+            <div v-else-if="currentPage === 'Categories'" class="bg-white p-6 sm:p-8 rounded-xl shadow-lg">
+                <h2 class="text-2xl font-semibold mb-6 text-gray-700">Categories</h2>
+                
+                <template v-if="categoryOrder.length > 0">
+                    <!-- Category Navigation Bar (分類導航列) -->
+                    <div class="flex flex-wrap gap-2 p-3 bg-indigo-50 rounded-lg mb-6 shadow-inner justify-center">
+                        <button
+                            v-for="category in categoryOrder"
+                            :key="category"
+                            @click="setCategoryFilter(category)"
+                            :class="{ 
+                                'bg-indigo-600 text-white shadow-md ring-2 ring-indigo-300': currentCategoryFilter === category,
+                                'bg-white text-gray-700 hover:bg-indigo-100': currentCategoryFilter !== category 
+                            }"
+                            class="px-3 py-1.5 font-bold text-lg rounded-md transition duration-150 ease-in-out border border-gray-200 text-sm sm:text-base whitespace-nowrap"
+                        >
+                            {{ category }} <span class="text-xs">({{ groupedCategories[category] ? groupedCategories[category].length : 0 }})</span>
+                        </button>
+                    </div>
+
+                    <!-- Category Results -->
+                    <div class="overflow-x-auto bg-gray-50 rounded-lg shadow-inner border border-gray-200">
+                        <table v-if="filteredCategories.length > 0" class="min-w-full divide-y divide-gray-200">
+                            <thead class="bg-indigo-50">
+                                <tr>
+                                    <!-- 移除寬度設定和隱藏設定 -->
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Entry</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Gloss Chinese</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Gloss Pinyin</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Note</th>
+                                </tr>
+                            </thead>
+                            <tbody class="bg-white divide-y divide-gray-200">
+                                <tr v-for="item in filteredCategories" :key="item.entry" class="hover:bg-indigo-50 transition duration-100 ease-in-out">
+                                    <!-- Entry (詞條) 欄位 - 加入音檔播放按鈕 -->
+                                    <td class="px-6 py-4 font-medium text-gray-900 flex items-center whitespace-nowrap">
+                                        <span class="mr-2">{{ item.entry }}</span>
+                                        <button 
+                                            v-if="item.hashed_audio_file" 
+                                            @click.stop="playAudio(item.hashed_audio_file)" 
+                                            title="播放音檔"
+                                            class="text-indigo-500 hover:text-indigo-700 focus:outline-none p-1 rounded-full hover:bg-indigo-100 transition duration-150 flex-shrink-0"
+                                        >
+                                            <!-- Speaker Icon (SVG) -->
+                                        <svg fill="currentColor" viewBox="0 0 260 228" class="w-5 h-5">
+                                            <path d="M170.81,78.043l15.653-15.653c14.848,12.299,24.323,30.868,24.323,51.61c0,21.04-9.757,39.836-24.974,52.128l-15.68-15.68
+                                                c11.291-8.184,18.655-21.469,18.655-36.448C188.786,99.32,181.719,86.262,170.81,78.043z M236,114
+                                                c0,28.068-12.569,53.253-32.371,70.231l15.584,15.584C242.982,178.82,258,148.133,258,114c0-33.836-14.757-64.286-38.168-85.265
+                                                L204.257,44.31C223.696,61.28,236,86.229,236,114z M146,2L56.4,66H2v96h54.4l89.6,64V2z"/>
+                                        </svg>
+                                        </button>
+                                    </td>
+                                    <!-- 移除寬度設定和隱藏設定 -->
+                                    <td class="px-6 py-4 text-sm text-gray-500 whitespace-nowrap">{{ item.category }}</td>
+                                    <!-- 移除寬度設定，保留 whitespace-normal 確保換行 -->
+                                    <td class="px-6 py-4 text-sm text-gray-700 whitespace-normal">{{ item.gloss_chinese }}</td>
+                                    <td class="px-6 py-4 text-sm text-gray-500 whitespace-nowrap">{{ item.gloss_pinyin }}</td>
+                                    <td class="px-6 py-4 text-sm text-gray-500 whitespace-normal">{{ item.note }}</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                        <div v-else class="p-8 text-center text-gray-500">
+                            找不到屬於分類 "{{ currentCategoryFilter }}" 的詞條。
+                        </div>
+                    </div>
+                </template>
+                <template v-else>
+                    <div class="p-8 text-center text-gray-500">
+                        資料中未找到任何分類 (Category) 資訊。
+                    </div>
+                </template>
+            </div>
+        </template>
+    </main>
+</div>
+
+<script>
+const { ref, onMounted, computed } = Vue
+
+// Helper function to parse CSV text into an array of objects
+function parseCSV(text) {
+    const [headerLine, ...dataLines] = text.trim().split('\n');
+    if (!headerLine) return [];
+
+    // 清理並獲取標頭
+    const headers = headerLine.split(',').map(h => h.trim().replace(/"/g, ''));
+
+    const data = dataLines.map(line => {
+        // 簡單的 CSV 分割，處理可能存在的引號
+        // 正則表達式: /,(?=(?:(?:[^"]*"){2})*[^"]*$)/g 用於分割逗號，但忽略雙引號內的逗號
+        const values = line.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/g).map(v => v.trim().replace(/"/g, ''));
+
+        return headers.reduce((obj, header, index) => {
+            obj[header] = values[index] || '';
+            return obj;
+        }, {});
+    }).filter(item => item.entry && item.entry.trim() !== ''); // 移除 entry 為空的項目
+    
+    return data;
+}
+
+const app = {
+    setup() {
+        const csvUrl = 'https://raw.githubusercontent.com/han-padahati/temp/refs/heads/main/output4.csv';
+        const audioBaseUrl = 'https://raw.githubusercontent.com/han-padahati/Yongxing/main/audio/';
+
+        // 定義詞典的子音順序（首字列表）
+        const consonantOrder = ['ʔ', 'ɓ', 'ɗ', 'h', 'k', 'kh', 'l', 'm', 'n', 'ŋ', 'ph', 's', 'tsh', 't', 'v', 'z'];
+        // 優先檢查多字組的順序，確保 'tsh' 在 't' 之前檢查
+        const prioritizedInitials = ['tsh', 'kh', 'ph', 'ʔ', 'ɓ', 'ɗ', 'h', 'k', 'l', 'm', 'n', 'ŋ', 's', 't', 'v', 'z'];
+
+
+        // State variables using Vue 3 Ref
+        const data = ref([]);
+        const isLoading = ref(true);
+        const error = ref(null);
+        
+        const currentPage = ref('Search');
+        
+        // Search state
+        const searchTerm = ref('');
+        const searchField = ref('entry');
+        const filteredResults = ref([]);
+        const currentQuery = ref('');
+        
+        // Lexicon state
+        const currentLexiconFilter = ref(consonantOrder[0]); // 預設為第一個子音 'ʔ'
+
+        // Categories state
+        const currentCategoryFilter = ref(null);
+        
+        // Methods
+        
+        // 獲取並解析 CSV 資料
+        const fetchData = async () => {
+            isLoading.value = true;
+            error.value = null;
+
+            try {
+                const response = await fetch(csvUrl);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP 錯誤! 狀態碼: ${response.status}`);
+                }
+
+                const csvText = await response.text();
+                const parsedData = parseCSV(csvText);
+                
+                data.value = parsedData;
+
+            } catch (err) {
+                console.error('Fetch or Parse Error:', err);
+                error.value = err.message || '未知錯誤';
+                data.value = [];
+            } finally {
+                isLoading.value = false;
+            }
+        };
+
+        // 處理搜索邏輯
+        const handleSearch = () => {
+            const term = searchTerm.value.trim().toLowerCase();
+            const field = searchField.value;
+            
+            if (term.length === 0) {
+                filteredResults.value = [];
+                currentQuery.value = '';
+                return;
+            }
+            
+            const results = data.value.filter(item => {
+                const value = item[field]?.toString().toLowerCase() || '';
+                return value.includes(term);
+            });
+
+            currentQuery.value = term;
+            filteredResults.value = results;
+        };
+
+        // 播放音檔的邏輯
+        const playAudio = (fileName) => {
+            if (!fileName) return;
+
+            // 為了讓瀏覽器能直接播放，需要使用 GitHub 的 raw 連結
+            const fullAudioUrl = `${audioBaseUrl}${fileName}`;
+            
+            try {
+                const audio = new Audio(fullAudioUrl);
+                
+                audio.play().catch(e => {
+                    console.error("Audio play failed, possibly due to browser autoplay policy:", e);
+                });
+                
+                audio.onerror = () => {
+                    console.error('音檔載入或播放失敗:', fullAudioUrl);
+                };
+
+            } catch (e) {
+                console.error("Error creating audio object:", e);
+            }
+        };
+        
+        // ----------------------------------------------------
+        // LEXICON 詞彙相關邏輯
+        // ----------------------------------------------------
+        
+        // 找出詞條的開頭子音（處理多字組如 'tsh'）
+        const getInitial = (entry) => {
+            if (!entry) return null;
+            const lowerEntry = entry.toLowerCase();
+            
+            // 依優先順序檢查
+            for (const initial of prioritizedInitials) {
+                if (lowerEntry.startsWith(initial)) {
+                    return initial;
+                }
+            }
+            return null; // 不符合任何定義的子音
+        };
+
+        // 將所有詞條按子音分組
+        const groupedLexicon = computed(() => {
+            const groups = {};
+            
+            // 初始化分組，確保所有定義的子音鍵都存在
+            consonantOrder.forEach(char => groups[char] = []);
+
+            data.value.forEach(item => {
+                const initial = getInitial(item.entry);
+                if (initial && groups[initial]) {
+                    groups[initial].push(item);
+                }
+            });
+
+            return groups;
+        });
+
+        // 根據當前選擇的子音篩選結果
+        const filteredLexicon = computed(() => {
+            return groupedLexicon.value[currentLexiconFilter.value] || [];
+        });
+        
+        // 設定詞典的篩選子音
+        const setLexiconFilter = (char) => {
+            currentLexiconFilter.value = char;
+        };
+
+        // ----------------------------------------------------
+        // CATEGORIES 分類相關邏輯
+        // ----------------------------------------------------
+        
+        // 將所有詞條按 Category 分組
+        const groupedCategories = computed(() => {
+            const groups = {};
+            data.value.forEach(item => {
+                // 如果 category 欄位為空，可以歸類為 '未分類'
+                const category = item.category && item.category.trim() !== '' ? item.category.trim() : '未分類';
+                if (!groups[category]) {
+                    groups[category] = [];
+                }
+                groups[category].push(item);
+            });
+            return groups;
+        });
+
+        // 獲取分類名稱的排序列表
+        const categoryOrder = computed(() => {
+            // 取得所有分類名稱並按字母順序排序
+            return Object.keys(groupedCategories.value).sort();
+        });
+
+        // 根據當前選擇的 Category 篩選結果
+        const filteredCategories = computed(() => {
+            if (!currentCategoryFilter.value) return [];
+            return groupedCategories.value[currentCategoryFilter.value] || [];
+        });
+        
+        // 設定 Category 的篩選
+        const setCategoryFilter = (category) => {
+            currentCategoryFilter.value = category;
+        };
+
+        // ----------------------------------------------------
+        
+        // 顯示選中欄位的中文名稱
+        const getFieldName = (field) => {
+            switch (field) {
+                case 'entry': return 'Entry (詞條)';
+                case 'gloss_chinese': return 'Gloss Chinese (中文釋義)';
+                case 'gloss_pinyin': return 'Gloss Pinyin (拼音)';
+                default: return '';
+            }
+        };
+
+        // 顯示頁面的中文名稱
+        const getPageTitle = (page) => {
+            switch (page) {
+                case 'Lexicon': return '詞彙';
+                case 'Categories': return '分類';
+                default: return '';
+            }
+        };
+
+        // Lifecycle hook: 在組件掛載後載入資料
+        onMounted(async () => {
+            await fetchData();
+
+            if (data.value.length > 0) {
+                // Initialize Category filter if it hasn't been set
+                if (!currentCategoryFilter.value && categoryOrder.value.length > 0) {
+                    currentCategoryFilter.value = categoryOrder.value[0];
+                }
+            }
+        });
+
+        return {
+            // Data & Loading
+            data,
+            isLoading,
+            error,
+            currentPage,
+            
+            // Search
+            searchTerm,
+            searchField,
+            filteredResults,
+            currentQuery,
+            handleSearch,
+            
+            // Lexicon
+            consonantOrder,
+            currentLexiconFilter,
+            groupedLexicon,
+            filteredLexicon,
+            setLexiconFilter,
+
+            // Categories
+            currentCategoryFilter,
+            groupedCategories,
+            filteredCategories,
+            categoryOrder,
+            setCategoryFilter,
+            
+            // Utility
+            playAudio,
+            getFieldName,
+            getPageTitle,
+        };
+    }
+};
+
+Vue.createApp(app).mount('#app');
+</script>
+
+</body>
+</html>
