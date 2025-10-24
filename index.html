@@ -8,9 +8,13 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- 載入 Vue.js 3 -->
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@500&display=swap" rel="stylesheet">
+
     <style>
         /* 使用 Inter 字體 */
-        body { font-family: 'Inter', sans-serif; }
+        body { font-family: "Noto Sans", sans-serif; }
         /* 導航連結的基礎樣式 */
         .nav-link {
             @apply text-gray-600 hover:text-indigo-600 font-medium px-3 py-2 rounded-lg transition duration-150 ease-in-out;
@@ -37,26 +41,36 @@
             <!-- Navigation 導航 (右上角) -->
             <nav class="flex space-x-4 sm:space-x-6">
                 <button 
-                    @click="currentPage = 'Search'"
-                    :class="{'nav-link-active': currentPage === 'Search'}"
-                    class="nav-link"
-                >
-                    Search
-                </button>
-                <button 
                     @click="currentPage = 'Lexicon'"
                     :class="{'nav-link-active': currentPage === 'Lexicon'}"
                     class="nav-link"
                 >
-                    Lexicon
+                    IPA
+                </button>
+                <button 
+                    @click="currentPage = 'Pinyin'"
+                    :class="{'nav-link-active': currentPage === 'Pinyin'}"
+                    class="nav-link"
+                >
+                    Pinyin
                 </button>
                 <button 
                     @click="currentPage = 'Categories'"
                     :class="{'nav-link-active': currentPage === 'Categories'}"
                     class="nav-link"
                 >
-                    Categories
+                    語意範疇
                 </button>
+                <button 
+                    @click="currentPage = 'Search'"
+                    :class="{'nav-link-active': currentPage === 'Search'}"
+                    class="nav-link"
+                >
+                    搜尋
+                </button>
+                
+                
+                
             </nav>
         </div>
     </header>
@@ -80,7 +94,7 @@
         <template v-else>
             <!-- Search 檢索頁面 -->
             <div v-if="currentPage === 'Search'" class="bg-white p-6 sm:p-8 rounded-xl shadow-lg">
-                <h2 class="text-2xl font-semibold mb-6 text-gray-700">Search</h2>
+                <h2 class="text-2xl font-semibold mb-6 text-gray-700">搜尋</h2>
 
                 <!-- 篩選條件輸入區 -->
                 <div class="flex flex-col sm:flex-row gap-4 mb-6 items-center">
@@ -177,7 +191,7 @@
             
             <!-- Lexicon 詞彙頁面 -->
             <div v-else-if="currentPage === 'Lexicon'" class="bg-white p-6 sm:p-8 rounded-xl shadow-lg">
-                <h2 class="text-2xl font-semibold mb-6 text-gray-700">Lexicon</h2>
+                <h2 class="text-2xl font-semibold mb-6 text-gray-700">IPA</h2>
                 
                 <!-- Character Navigation Bar (子音導航列) -->
                 <div class="flex flex-wrap gap-2 p-3 bg-indigo-50 rounded-lg mb-6 shadow-inner justify-center">
@@ -243,9 +257,75 @@
                 </div>
             </div>
             
+            <!-- Pinyin 拼音頁面 -->
+            <div v-else-if="currentPage === 'Pinyin'" class="bg-white p-6 sm:p-8 rounded-xl shadow-lg">
+                <h2 class="text-2xl font-semibold mb-6 text-gray-700">Pinyin</h2>
+                
+                <!-- Pinyin Navigation Bar (拼音導航列) -->
+                <div class="flex flex-wrap gap-2 p-3 bg-indigo-50 rounded-lg mb-6 shadow-inner justify-center">
+                    <button
+                        v-for="char in pinyinOrder"
+                        :key="char"
+                        @click="setPinyinFilter(char)"
+                        :class="{ 
+                            'bg-indigo-600 text-white shadow-md ring-2 ring-indigo-300': currentPinyinFilter === char,
+                            'bg-white text-gray-700 hover:bg-indigo-100': currentPinyinFilter !== char 
+                        }"
+                        class="px-3 py-1.5 font-bold text-lg rounded-md transition duration-150 ease-in-out border border-gray-200 text-sm sm:text-base"
+                    >
+                        {{ char }} <span class="text-xs">({{ groupedPinyin[char] ? groupedPinyin[char].length : 0 }})</span>
+                    </button>
+                </div>
+
+                <!-- Pinyin Results -->
+                <div class="overflow-x-auto bg-gray-50 rounded-lg shadow-inner border border-gray-200">
+                    <table v-if="filteredPinyin.length > 0" class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-indigo-50">
+                            <tr>
+                                <!-- 調整欄位順序：Gloss Pinyin, Gloss Chinese, Entry, Category, Note -->
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Gloss Pinyin</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Gloss Chinese</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Entry</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Note</th>
+                            </tr>
+                        </thead>
+                        <tbody class="bg-white divide-y divide-gray-200">
+                            <tr v-for="item in filteredPinyin" :key="item.entry" class="hover:bg-indigo-50 transition duration-100 ease-in-out">
+                                <!-- 調整欄位順序 -->
+                                <td class="px-6 py-4 text-sm text-gray-500 whitespace-nowrap">{{ item.gloss_pinyin }}</td>
+                                <td class="px-6 py-4 text-sm text-gray-700 whitespace-normal">{{ item.gloss_chinese }}</td>
+                                <td class="px-6 py-4 font-medium text-gray-900 flex items-center whitespace-nowrap">
+                                    <span class="mr-2">{{ item.entry }}</span>
+                                    <button 
+                                        v-if="item.hashed_audio_file" 
+                                        @click.stop="playAudio(item.hashed_audio_file)" 
+                                        title="播放音檔"
+                                        class="text-indigo-500 hover:text-indigo-700 focus:outline-none p-1 rounded-full hover:bg-indigo-100 transition duration-150 flex-shrink-0"
+                                    >
+                                        <!-- Speaker Icon (SVG) -->
+                                        <svg fill="currentColor" viewBox="0 0 260 228" class="w-5 h-5">
+                                            <path d="M170.81,78.043l15.653-15.653c14.848,12.299,24.323,30.868,24.323,51.61c0,21.04-9.757,39.836-24.974,52.128l-15.68-15.68
+                                                c11.291-8.184,18.655-21.469,18.655-36.448C188.786,99.32,181.719,86.262,170.81,78.043z M236,114
+                                                c0,28.068-12.569,53.253-32.371,70.231l15.584,15.584C242.982,178.82,258,148.133,258,114c0-33.836-14.757-64.286-38.168-85.265
+                                                L204.257,44.31C223.696,61.28,236,86.229,236,114z M146,2L56.4,66H2v96h54.4l89.6,64V2z"/>
+                                        </svg>
+                                    </button>
+                                </td>
+                                <td class="px-6 py-4 text-sm text-gray-500 whitespace-nowrap">{{ item.category }}</td>
+                                <td class="px-6 py-4 text-sm text-gray-500 whitespace-normal">{{ item.note }}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    <div v-else class="p-8 text-center text-gray-500">
+                        找不到以 "{{ currentPinyinFilter.toUpperCase() }}" 開頭的拼音詞條。
+                    </div>
+                </div>
+            </div>
+            
             <!-- Categories 頁面 -->
             <div v-else-if="currentPage === 'Categories'" class="bg-white p-6 sm:p-8 rounded-xl shadow-lg">
-                <h2 class="text-2xl font-semibold mb-6 text-gray-700">Categories</h2>
+                <h2 class="text-2xl font-semibold mb-6 text-gray-700">語意範疇</h2>
                 
                 <template v-if="categoryOrder.length > 0">
                     <!-- Category Navigation Bar (分類導航列) -->
@@ -351,10 +431,13 @@ const app = {
         const csvUrl = 'https://raw.githubusercontent.com/han-padahati/temp/refs/heads/main/output4.csv';
         const audioBaseUrl = 'https://raw.githubusercontent.com/han-padahati/Yongxing/main/audio/';
 
-        // 定義詞典的子音順序（首字列表）
+        // 定義 Lexicon (IPA) 的子音順序（首字列表）
         const consonantOrder = ['ʔ', 'ɓ', 'ɗ', 'h', 'k', 'kh', 'l', 'm', 'n', 'ŋ', 'ph', 's', 'tsh', 't', 'v', 'z'];
         // 優先檢查多字組的順序，確保 'tsh' 在 't' 之前檢查
         const prioritizedInitials = ['tsh', 'kh', 'ph', 'ʔ', 'ɓ', 'ɗ', 'h', 'k', 'l', 'm', 'n', 'ŋ', 's', 't', 'v', 'z'];
+
+        // 定義 Pinyin 的首字順序
+        const pinyinOrder = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'j', 'k', 'l', 'm', 'n', 'p', 'q', 'r', 's', 't', 'w', 'x', 'y', 'z'];
 
 
         // State variables using Vue 3 Ref
@@ -372,6 +455,9 @@ const app = {
         
         // Lexicon state
         const currentLexiconFilter = ref(consonantOrder[0]); // 預設為第一個子音 'ʔ'
+
+        // Pinyin state
+        const currentPinyinFilter = ref(pinyinOrder[0]); // 預設為第一個拼音 'a'
 
         // Categories state
         const currentCategoryFilter = ref(null);
@@ -448,7 +534,7 @@ const app = {
         };
         
         // ----------------------------------------------------
-        // LEXICON 詞彙相關邏輯
+        // LEXICON 詞彙 (IPA) 相關邏輯
         // ----------------------------------------------------
         
         // 找出詞條的開頭子音（處理多字組如 'tsh'）
@@ -491,6 +577,67 @@ const app = {
         const setLexiconFilter = (char) => {
             currentLexiconFilter.value = char;
         };
+
+        // ----------------------------------------------------
+        // PINYIN 拼音相關邏輯
+        // ----------------------------------------------------
+
+        // 找出拼音的首字母 (只取第一個字元)
+        const getPinyinInitial = (pinyin) => {
+            if (!pinyin) return null;
+            // 移除可能存在的聲調符號，然後取第一個字元
+            const cleanedPinyin = pinyin.toLowerCase().replace(/[āáǎàēéěèīíǐìōóǒòūúǔùüǖǘǚǜ]/g, (char) => {
+                switch (char) {
+                    case 'ā': case 'á': case 'ǎ': case 'à': return 'a';
+                    case 'ē': case 'é': case 'ě': case 'è': return 'e';
+                    case 'ī': case 'í': case 'ǐ': case 'ì': return 'i';
+                    case 'ō': case 'ó': case 'ǒ': case 'ò': return 'o';
+                    case 'ū': case 'ú': case 'ǔ': case 'ù': return 'u';
+                    case 'ǖ': case 'ǘ': case 'ǚ': case 'ǜ': return 'v'; // 'ü' in pinyin is sometimes written as 'v'
+                    default: return char;
+                }
+            });
+            
+            const initial = cleanedPinyin.charAt(0);
+            return pinyinOrder.includes(initial) ? initial : null;
+        };
+        
+        // 將所有詞條按拼音首字母分組
+        const groupedPinyin = computed(() => {
+            const groups = {};
+            
+            // 初始化分組，確保所有定義的拼音鍵都存在
+            pinyinOrder.forEach(char => groups[char] = []);
+
+            data.value.forEach(item => {
+                const initial = getPinyinInitial(item.gloss_pinyin);
+                if (initial && groups[initial]) {
+                    groups[initial].push(item);
+                }
+            });
+
+            return groups;
+        });
+
+        // 根據當前選擇的拼音篩選結果，並進行 A->Z 排序
+        const filteredPinyin = computed(() => {
+            const results = groupedPinyin.value[currentPinyinFilter.value] || [];
+            
+            // 根據 gloss_pinyin 進行 A->Z 排序
+            return results.slice().sort((a, b) => {
+                const pinyinA = a.gloss_pinyin.toLowerCase();
+                const pinyinB = b.gloss_pinyin.toLowerCase();
+                if (pinyinA < pinyinB) return -1;
+                if (pinyinA > pinyinB) return 1;
+                return 0;
+            });
+        });
+        
+        // 設定拼音的篩選字母
+        const setPinyinFilter = (char) => {
+            currentPinyinFilter.value = char;
+        };
+
 
         // ----------------------------------------------------
         // CATEGORIES 分類相關邏輯
@@ -580,6 +727,13 @@ const app = {
             groupedLexicon,
             filteredLexicon,
             setLexiconFilter,
+
+            // Pinyin
+            pinyinOrder,
+            currentPinyinFilter,
+            groupedPinyin,
+            filteredPinyin,
+            setPinyinFilter,
 
             // Categories
             currentCategoryFilter,
