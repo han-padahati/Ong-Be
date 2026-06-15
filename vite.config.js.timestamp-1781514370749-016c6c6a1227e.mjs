@@ -1,0 +1,14 @@
+// vite.config.js
+import { defineConfig } from "file:///sessions/beautiful-optimistic-albattani/mnt/%E5%BD%A5%E4%BC%B6%E8%80%81%E5%B8%AB/Ong-Be/node_modules/vite/dist/node/index.js";
+import vue from "file:///sessions/beautiful-optimistic-albattani/mnt/%E5%BD%A5%E4%BC%B6%E8%80%81%E5%B8%AB/Ong-Be/node_modules/@vitejs/plugin-vue/dist/index.mjs";
+var vite_config_default = defineConfig({
+  plugins: [vue()],
+  server: {
+    port: 3e3,
+    open: true
+  }
+});
+export {
+  vite_config_default as default
+};
+//# sourceMappingURL=data:application/json;base64,ewogICJ2ZXJzaW9uIjogMywKICAic291cmNlcyI6IFsidml0ZS5jb25maWcuanMiXSwKICAic291cmNlc0NvbnRlbnQiOiBbImNvbnN0IF9fdml0ZV9pbmplY3RlZF9vcmlnaW5hbF9kaXJuYW1lID0gXCIvc2Vzc2lvbnMvYmVhdXRpZnVsLW9wdGltaXN0aWMtYWxiYXR0YW5pL21udC9cdTVGNjVcdTRGMzZcdTgwMDFcdTVFMkIvT25nLUJlXCI7Y29uc3QgX192aXRlX2luamVjdGVkX29yaWdpbmFsX2ZpbGVuYW1lID0gXCIvc2Vzc2lvbnMvYmVhdXRpZnVsLW9wdGltaXN0aWMtYWxiYXR0YW5pL21udC9cdTVGNjVcdTRGMzZcdTgwMDFcdTVFMkIvT25nLUJlL3ZpdGUuY29uZmlnLmpzXCI7Y29uc3QgX192aXRlX2luamVjdGVkX29yaWdpbmFsX2ltcG9ydF9tZXRhX3VybCA9IFwiZmlsZTovLy9zZXNzaW9ucy9iZWF1dGlmdWwtb3B0aW1pc3RpYy1hbGJhdHRhbmkvbW50LyVFNSVCRCVBNSVFNCVCQyVCNiVFOCU4MCU4MSVFNSVCOCVBQi9PbmctQmUvdml0ZS5jb25maWcuanNcIjtpbXBvcnQgeyBkZWZpbmVDb25maWcgfSBmcm9tICd2aXRlJ1xuaW1wb3J0IHZ1ZSBmcm9tICdAdml0ZWpzL3BsdWdpbi12dWUnXG5cbmV4cG9ydCBkZWZhdWx0IGRlZmluZUNvbmZpZyh7XG4gIHBsdWdpbnM6IFt2dWUoKV0sXG4gIHNlcnZlcjoge1xuICAgIHBvcnQ6IDMwMDAsXG4gICAgb3BlbjogdHJ1ZVxuICB9XG59KVxuXG4iXSwKICAibWFwcGluZ3MiOiAiO0FBQTBYLFNBQVMsb0JBQW9CO0FBQ3ZaLE9BQU8sU0FBUztBQUVoQixJQUFPLHNCQUFRLGFBQWE7QUFBQSxFQUMxQixTQUFTLENBQUMsSUFBSSxDQUFDO0FBQUEsRUFDZixRQUFRO0FBQUEsSUFDTixNQUFNO0FBQUEsSUFDTixNQUFNO0FBQUEsRUFDUjtBQUNGLENBQUM7IiwKICAibmFtZXMiOiBbXQp9Cg==
